@@ -12,6 +12,8 @@ let lastUpdate = 0;
 const received = new Set();
 const chats = new Set();
 
+const threshold = {};
+
 const getData = async () => {
   const response = await axios.get(KANDILLI_URL);
   const data = response.data;
@@ -91,12 +93,14 @@ const getData = async () => {
 
         // New Earthquake
         for (const chat of chats) {
-          telegram.sendMessage(
-            chat,
-            `New Earthquake: ${item.location} (${moment(item.ts * 1000)
-              .format("DD.MM.YYYY HH:mm:ss")
-              .toString()}) [${item.ml}]`
-          );
+          if (threshold && threshold[chat] && item.ml >= threshold[chat]) {
+            telegram.sendMessage(
+              chat,
+              `New Earthquake: ${item.location} (${moment(item.ts * 1000)
+                .format("DD.MM.YYYY HH:mm:ss")
+                .toString()}) [${item.ml}]`
+            );
+          }
         }
       }
     }
@@ -113,6 +117,7 @@ const listenReceivers = async () => {
   if (messages && messages?.length > 0) {
     for (let i = 0; i < messages.length; i++) {
       const chat_id = messages[i].chat_id;
+      const text = messages[i].text;
 
       if (!chats.has(chat_id)) {
         chats.add(chat_id);
@@ -121,6 +126,11 @@ const listenReceivers = async () => {
           chat_id,
           "You are registered to the service.\nYou will receive a message if an earthquake happens in Turkey."
         );
+      }
+
+      if (text.includes("/threshold-")) {
+        const value = parseFloat(text.split("-")[1]);
+        threshold[chat_id] = value;
       }
     }
   }
